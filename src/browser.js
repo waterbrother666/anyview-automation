@@ -5,10 +5,12 @@
   if (!location.pathname.startsWith('/student/')) throw Error('请先打开学生端');
   if (window.AnyViewAutomation) { window.AnyViewAutomation.show(); return; }
   const bank = __BANK__;
+  const chapters = validateChapters(__CHAPTERS__);
+  const scopeLabel = `第${chapters.join('、')}章`;
   const STORE = 'anyview-automation:v1';
   const LOCK = `${STORE}:lease`;
   const id = crypto.randomUUID();
-  let token = ''; let course = null; let runner = null; let heartbeat = null; let connected = false;
+  let token = ''; let course = null; let runner = null; let heartbeat = null; let connected = false; let firstSingle = null;
   const originalSet = XMLHttpRequest.prototype.setRequestHeader;
   const originalOpen = XMLHttpRequest.prototype.open;
   const originalFetch = window.fetch;
@@ -89,14 +91,15 @@
   const panel = document.createElement('dialog');
   panel.setAttribute('aria-label', 'AnyView 自动过题');
   // Browser default controls; no external scripts, styles, analytics, or services.
-  panel.innerHTML = '<h3>AnyView 自动过题 · 第1—5章</h3><p data-message>已准备好。请在原页面点击一次返回、课程或章节以连接会话。</p><button data-load>读取课程与目录</button> <select aria-label="选择课程"></select><p data-plan></p><button data-one>先验证 DC01PE21</button> <button data-run>开始第一至第五章</button> <button data-stop>停止</button> <button data-export>导出结果</button> <button data-close>收起</button><pre data-progress></pre>';
+  panel.innerHTML = '<h3>AnyView 自动过题</h3><p data-message>已准备好。请在原页面点击一次返回、课程或章节以连接会话。</p><button data-load>读取课程与目录</button> <select aria-label="选择课程"></select><p data-plan></p><button data-one>先验证一题</button> <button data-run>开始所选章节</button> <button data-stop>停止</button> <button data-export>导出结果</button> <button data-close>收起</button><pre data-progress></pre>';
+  panel.querySelector('h3').textContent = `AnyView 自动过题 · ${scopeLabel}`;
   document.body.append(panel); panel.show();
   const $ = selector => panel.querySelector(selector);
   const states = { idle:'就绪',running:'运行中',completed:'已完成并复核',failed:'未通过，已暂停',
     compile_failed:'编译失败，已暂停',uncertain:'结果不明确，已暂停',stopped:'已停止' };
   function render(message) {
     if (message) $('[data-message]').textContent = message;
-    $('[data-one]').disabled = !course || !!runner?.running;
+    $('[data-one]').disabled = !course || !firstSingle || !!runner?.running;
     $('[data-run]').disabled = !course || !!runner?.running;
     $('[data-load]').disabled = !!runner?.running;
     $('select').disabled = !!runner?.running;
@@ -109,11 +112,13 @@
     if (runner?.running) return;
     course = courses.find(c => String(c.id) === $('select').value); key = await storageKey();
     const stored = JSON.parse(localStorage.getItem(key) || 'null');
-    runner = new Runner({ api, bank, previous: stored?.records || [],
+    runner = new Runner({ api, bank, chapters, previous: stored?.records || [],
       save: async state => localStorage.setItem(key, JSON.stringify(state)), onChange: () => render() });
     const plan = await runner.plan();
+    firstSingle = plan.find(p => p.status === 'pending')?.pname || null;
+    $('[data-one]').textContent = firstSingle ? `先验证 ${firstSingle}` : '范围内无需单题验证';
     const pending = plan.filter(p => p.status === 'pending').length;
-    $('[data-plan]').textContent = `范围内 ${plan.length} 题；已通过 ${plan.filter(p => p.status === 'already_passed').length}；待做 ${pending}；缺题解 ${plan.filter(p => p.status === 'no_bank').length}。`;
+    $('[data-plan]').textContent = `${scopeLabel}：范围内 ${plan.length} 题；已通过 ${plan.filter(p => p.status === 'already_passed').length}；待做 ${pending}；缺题解 ${plan.filter(p => p.status === 'no_bank').length}。`;
     render('目录已读取；开始后将向学校服务器提交题解，并逐题复核通过状态。');
   }
   let courses = [];
@@ -138,7 +143,7 @@
       finally { release(); }
     });
   } catch(e) { error(e); } }
-  $('[data-one]').onclick = () => start('DC01PE21');
+  $('[data-one]').onclick = () => firstSingle && start(firstSingle);
   $('[data-run]').onclick = () => start(null);
   $('[data-stop]').onclick = () => { runner?.stop(); render('停止已请求；会先记录正在处理的请求结果。'); };
   $('[data-close]').onclick = () => panel.close();

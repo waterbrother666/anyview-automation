@@ -40,6 +40,16 @@ class ImportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.import_bank(z)
 
+    def test_later_chapters_require_explicit_scope(self):
+        z = archive([('DC01PE21.js', 'module.exports = "a";'), ('DC06PE01.js', 'module.exports = "b";'), ('DC08PE12.js', 'module.exports = "c";')])
+        self.assertEqual(module.import_bank(z, [6, 7, 8]), {'DC06PE01':'b', 'DC08PE12':'c'})
+
+    def test_parse_chapters(self):
+        self.assertEqual(module.parse_chapters('6-8'), [6,7,8])
+        self.assertEqual(module.parse_chapters('1,3-5'), [1,3,4,5])
+        for value in ['0','9','6,6','8-6','']:
+            with self.assertRaises(ValueError): module.parse_chapters(value)
+
 
 if __name__ == '__main__':
     unittest.main()

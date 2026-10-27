@@ -10,10 +10,17 @@ export function chapterOf(p) {
 
 export function isPassed(p) { return p?.pass === true; }
 
-export function makePlan(catalog, bank) {
+export function validateChapters(chapters) {
+  if (!Array.isArray(chapters) || !chapters.length || chapters.some(c => !Number.isInteger(c) || c < 1 || c > 8) ||
+      new Set(chapters).size !== chapters.length) throw new Halt('scope_error', '章节必须为 1—8 内不重复的整数');
+  return [...chapters].sort((a,b) => a-b);
+}
+
+export function makePlan(catalog, bank, chapters = [1,2,3,4,5]) {
+  const allowed = new Set(validateChapters(chapters));
   if (!Array.isArray(catalog)) throw new Halt('protocol_error', '目录格式异常');
   const seen = new Set();
-  return catalog.filter(p => chapterOf(p) >= 1 && chapterOf(p) <= 5)
+  return catalog.filter(p => allowed.has(chapterOf(p)))
     .map(p => {
       if (seen.has(p.pname) || p.eid == null) throw new Halt('protocol_error', '题号重复或缺少 eid');
       seen.add(p.pname);
@@ -23,17 +30,18 @@ export function makePlan(catalog, bank) {
 }
 
 export class Runner {
-  constructor({ api, bank, save, onChange = () => {}, sleep = ms => new Promise(r => setTimeout(r, ms)), previous = [] }) {
+  constructor({ api, bank, save, onChange = () => {}, sleep = ms => new Promise(r => setTimeout(r, ms)), previous = [], chapters = [1,2,3,4,5] }) {
     this.api = api; this.bank = bank; this.save = save; this.onChange = onChange;
     this.sleep = sleep; this.records = previous; this.running = false; this.stopRequested = false;
     this.state = 'idle'; this.current = null;
+    this.chapters = validateChapters(chapters);
   }
   stop() { this.stopRequested = true; this.onChange(this.snapshot()); }
   snapshot() { return { version: 1, state: this.state, running: this.running,
-    stopRequested: this.stopRequested, current: this.current, message: this.message || '', records: structuredClone(this.records) }; }
+    stopRequested: this.stopRequested, chapters: this.chapters, current: this.current, message: this.message || '', records: structuredClone(this.records) }; }
   async persist() { await this.save(this.snapshot()); this.onChange(this.snapshot()); }
   checkpoint() { if (this.stopRequested) throw new Halt('stopped', '已停止；不会开始下一次请求'); }
-  async plan() { return makePlan(await this.api.catalog(), this.bank); }
+  async plan() { return makePlan(await this.api.catalog(), this.bank, this.chapters); }
   record(p, status, extra = {}) {
     const entry = { pname: p.pname, eid: p.eid, chapter: chapterOf(p), status,
       updatedAt: new Date().toISOString(), ...extra };
@@ -43,7 +51,7 @@ export class Runner {
   }
   async start({ only = null } = {}) {
     if (this.running) throw new Halt('busy', '当前批次仍在运行');
-    if (only && !/^DC0[1-5]PE\d+[a-z]?$/i.test(only)) throw new Halt('scope_error', '仅支持第一至第五章');
+    if (only && !this.chapters.includes(chapterOf({pname:only}))) throw new Halt('scope_error', '题目不在所选章节范围');
     this.running = true; this.stopRequested = false; this.state = 'running'; this.message = '';
     try {
       let plan = await this.plan();

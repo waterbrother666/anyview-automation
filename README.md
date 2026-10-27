@@ -2,7 +2,7 @@
 
 广东工业大学 AnyView 编程练习自动化工作流：章节筛选、服务端通过状态复核、停止续跑和逐题结果导出。
 
-当前实现范围为第一至第五章。运行使用自己的已登录学生页面和自己有权使用的题解文件。框架以 MIT 许可公开，**不包含题解库、账号、密码、认证 token 或实际学生作业记录**。框架许可不授予学校课程材料或外部题解的再分发权。
+支持第一至第八章的显式章节范围，默认仍为第一至第五章。运行使用自己的已登录学生页面和自己有权使用的题解文件。框架以 MIT 许可公开，**不包含题解库、账号、密码、认证 token 或实际学生作业记录**。框架许可不授予学校课程材料或外部题解的再分发权。
 
 ## 功能
 
@@ -24,11 +24,20 @@ python3 import_bank.py /absolute/path/to/your-answer-archive.zip
 python3 build.py
 ```
 
-导入器只读取 `DC01` 至 `DC05` 的 `module.exports = "..."` JSON 字符串，不执行压缩包内的 JavaScript、Python、启动器或二进制。题解导入到 Git 忽略的 `local/bank.json`，最终脚本生成到 Git 忽略的 `dist/anyview-runner.js`。也可以直接提供自己的 JSON 对象，题号为键、完整 C 代码为值：
+导入器只读取所选章节的 `module.exports = "..."` JSON 字符串，不执行压缩包内的 JavaScript、Python、启动器或二进制。题解导入到 Git 忽略的 `local/bank.json`，最终脚本生成到 Git 忽略的 `dist/anyview-runner.js`。也可以直接提供自己的 JSON 对象，题号为键、完整 C 代码为值：
 
 ```sh
 python3 build.py --bank /absolute/path/to/your-bank.json
 ```
+
+只处理第六至第八章：
+
+```sh
+python3 import_bank.py /absolute/path/to/your-answer-archive.zip --chapters 1-8
+python3 build.py --chapters 6-8
+```
+
+`--chapters` 支持 `6-8`、`1,3-5` 等写法；构建脚本只打包所选章节题解，运行时不会提交范围外的题目。
 
 ## 在 Ego Lite 中使用
 
@@ -36,7 +45,7 @@ python3 build.py --bank /absolute/path/to/your-bank.json
 2. 审阅生成的 `dist/anyview-runner.js`，在该页面的开发者工具 Console 或 Snippets 中运行。也可在 Ego Lite 打开本地 `dist/install.html`，把其中的启动器链接拖到书签栏，再切回 AnyView 点击书签。浏览器如果要求人工处理粘贴或权限提示，由用户本人完成。
 3. 脚本会显示控制面板。在学校原页面正常点击一次返回、课程或章节，使脚本连接当前会话；不需要把密码交给脚本。
 4. 点击「读取课程与目录」，核对课程和题目数量。
-5. 点击「先验证 DC01PE21」。确认单题判题和目录通过后，再点击「开始第一至第五章」。
+5. 点击「先验证」按钮验证所选范围第一道未通过题。确认单题判题和目录通过后，再点击「开始所选章节」。
 6. 可以随时点「停止」；当前请求的结果会先落盘。结束后点「导出结果」。
 
 页面刷新后需要重新运行脚本。相同课程的逐题记录保存在该浏览器的本站 localStorage 中；不保存认证信息。多个学生共用同一浏览器配置时，不明确记录会保守阻止重发，应先人工核对。完整题解会包含在生成的私有运行文件中，公开分享前需独立确认权利。
