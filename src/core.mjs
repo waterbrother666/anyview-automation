@@ -63,6 +63,7 @@ export class Runner {
         if (!Object.hasOwn(this.bank, fresh.pname)) {
           this.record(fresh, 'no_bank'); await this.persist(); throw new Halt('no_bank', '缺少题解，已暂停');
         }
+        this.record(fresh, 'pending', { catalogPass: false }); await this.persist();
         this.checkpoint();
         const detail = await this.api.detail(fresh.eid);
         if (detail.questionFullName !== `第${chapterOf(fresh)}章-${fresh.pname}` ||
@@ -99,7 +100,8 @@ export class Runner {
       }
       // Final authoritative read; absence or false cannot be reported as completion.
       const finalPlan = (await this.plan()).filter(p => !only || p.pname === only);
-      if (finalPlan.length !== plan.length || finalPlan.some(p => p.status !== 'already_passed'))
+      if (finalPlan.length !== plan.length || finalPlan.some((p, i) => p.status !== 'already_passed' ||
+          p.pname !== plan[i].pname || String(p.eid) !== String(plan[i].eid)))
         throw new Halt('uncertain', '最终目录复核未全部通过');
       this.state = 'completed';
     } catch (err) {

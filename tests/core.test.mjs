@@ -68,6 +68,16 @@ test('wrong question identity never compiles', async () => {
   const { runner, calls } = fixture({ detail: { questionFullName:'第2章-DC02PE05' } });
   const result = await runner.start(); assert.equal(result.state, 'protocol_error'); assert.ok(!calls.includes('compile'));
 });
+test('a stale local success is cleared before a detail protocol failure', async () => {
+  const { runner } = fixture({ previous: [{pname:'DC01PE21',status:'passed'}], detail:{questionFullName:'wrong'} });
+  const result=await runner.start();assert.equal(result.state,'protocol_error');
+  assert.equal(result.records[0].status,'pending');assert.equal(result.records[0].catalogPass,false);
+});
+test('final verification detects a replaced exercise identity', async () => {
+  const { runner } = fixture(); const realCatalog=runner.api.catalog;let n=0;
+  runner.api.catalog=async()=>{ const rows=await realCatalog();n++;return n>=4?rows.map(p=>({...p,eid:999})):rows; };
+  const result=await runner.start();assert.equal(result.state,'uncertain');
+});
 test('stop between compilation and judging sends no judge POST', async () => {
   const { runner, calls } = fixture();
   runner.onChange = state => { if (state.records[0]?.status === 'compiling') runner.stopRequested = true; };
