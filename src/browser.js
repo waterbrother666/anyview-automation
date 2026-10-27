@@ -51,7 +51,9 @@
     if ([401, 403].includes(response.status)) throw new Halt('need_session', '会话失效，请在网站正常登录');
     if (!response.ok) throw new Halt(fields ? 'uncertain' : 'network_error', '网站请求失败');
     const json = await response.json();
-    if (![0, 200].includes(json.code) || json.data == null) {
+    // Mirrors the student frontend's response interceptor. Each caller still
+    // validates the required data shape before making any consequential write.
+    if (![0, 31, 41, 70, 200].includes(json.code) || json.data == null) {
       const code = typeof json.code === 'number' && Number.isFinite(json.code) ? `（状态码 ${json.code}）` : '';
       throw new Halt(fields ? 'uncertain' : 'protocol_error', `网站返回异常或会话失效${code}`);
     }

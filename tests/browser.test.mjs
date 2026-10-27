@@ -65,8 +65,8 @@ test('a second browser start skips a server-passed question',async()=>{
   await h.controls.get('[data-one]').onclick();await h.controls.get('[data-one]').onclick();
   assert.equal(h.calls.filter(x=>x.path.endsWith('/runGroup')).length,1);
 });
-test('a numeric zero success code is accepted for catalog and evaluation requests',async()=>{
-  const h=harness('https://anyview.gdut.edu.cn',0);h.connect();await h.controls.get('[data-load]').onclick();
+for (const code of [0,31,41,70,200]) test(`frontend-supported response code ${code} is accepted with valid data`,async()=>{
+  const h=harness('https://anyview.gdut.edu.cn',code);h.connect();await h.controls.get('[data-load]').onclick();
   await h.controls.get('[data-one]').onclick();
   assert.equal(h.context.AnyViewAutomation.report().state,'completed');
 });
