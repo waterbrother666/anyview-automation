@@ -51,8 +51,10 @@
     if ([401, 403].includes(response.status)) throw new Halt('need_session', '会话失效，请在网站正常登录');
     if (!response.ok) throw new Halt(fields ? 'uncertain' : 'network_error', '网站请求失败');
     const json = await response.json();
-    if (json.code !== 200 || json.data == null)
-      throw new Halt(fields ? 'uncertain' : 'protocol_error', '网站返回异常或会话失效');
+    if (![0, 200].includes(json.code) || json.data == null) {
+      const code = typeof json.code === 'number' && Number.isFinite(json.code) ? `（状态码 ${json.code}）` : '';
+      throw new Halt(fields ? 'uncertain' : 'protocol_error', `网站返回异常或会话失效${code}`);
+    }
     return json.data;
   }
   const b64 = text => { const bytes = new TextEncoder().encode(text); let binary = '';
