@@ -7,7 +7,7 @@ import { webcrypto } from 'node:crypto';
 const core = fs.readFileSync(new URL('../src/core.mjs', import.meta.url), 'utf8').replaceAll('export ', '');
 const browser = fs.readFileSync(new URL('../src/browser.js', import.meta.url), 'utf8')
   .replace('__BANK__', JSON.stringify({DC01PE21: '#include "example.h"\nint example(void){return 1;}'}));
-function harness(origin = 'https://anyview.gdut.edu.cn') {
+function harness(origin = 'https://anyview.gdut.edu.cn', successCode = 200) {
   const controls = new Map(); const calls = []; const data = new Map(); let passed = false;
   const element = () => ({ textContent:'', disabled:false, value:'', open:false,
     setAttribute(){}, append(){}, click(){}, show(){this.open=true;}, close(){this.open=false;},
@@ -23,7 +23,7 @@ function harness(origin = 'https://anyview.gdut.edu.cn') {
     else if (path.endsWith('/compile')) result={result:'编译成功'};
     else if (path.endsWith('/runGroup')) {passed=true;result={passed:true,output:'OK'};}
     else throw Error('Unexpected request: '+path);
-    return {ok:true,status:200,json:async()=>({code:200,data:result})};
+    return {ok:true,status:200,json:async()=>({code:successCode,data:result})};
   };
   const context = {location:{origin,href:origin+'/student/exercises/problems',pathname:'/student/exercises/problems'},
     crypto:webcrypto, document:{createElement:()=>element(),body:{append(){}}},
@@ -64,4 +64,15 @@ test('a second browser start skips a server-passed question',async()=>{
   const h=harness();h.connect();await h.controls.get('[data-load]').onclick();
   await h.controls.get('[data-one]').onclick();await h.controls.get('[data-one]').onclick();
   assert.equal(h.calls.filter(x=>x.path.endsWith('/runGroup')).length,1);
+});
+test('a numeric zero success code is accepted for catalog and evaluation requests',async()=>{
+  const h=harness('https://anyview.gdut.edu.cn',0);h.connect();await h.controls.get('[data-load]').onclick();
+  await h.controls.get('[data-one]').onclick();
+  assert.equal(h.context.AnyViewAutomation.report().state,'completed');
+});
+test('an unexpected server code is shown without revealing credentials',async()=>{
+  const h=harness('https://anyview.gdut.edu.cn',403);h.connect();await h.controls.get('[data-load]').onclick();
+  assert.match(h.controls.get('[data-message]').textContent,/状态码 403/);
+  assert.ok(!h.controls.get('[data-message]').textContent.includes('test-session-only'));
+  assert.ok(!h.calls.some(x=>x.path.endsWith('/runGroup')));
 });
