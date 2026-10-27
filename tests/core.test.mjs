@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Runner, makePlan, isPassed } from '../src/core.mjs';
+import { Runner, makePlan, isPassed, validateChapters } from '../src/core.mjs';
 
 const p = (name = 'DC01PE21', eid = 1) => ({ pname: name, eid, pass: false });
 function fixture(options = {}) {
@@ -16,7 +16,7 @@ function fixture(options = {}) {
       judged = true; return options.judgeResult || { passed: true, output: 'OK' }; }
   };
   const runner = new Runner({ api, bank: options.bank || { DC01PE21: 'code' },
-    previous: options.previous || [], sleep: async () => {},
+    previous: options.previous || [], chapters: options.chapters, sleep: async () => {},
     save: async state => saved.push(structuredClone(state)), onChange: options.onChange });
   return { runner, calls, saved, rows };
 }
@@ -97,4 +97,19 @@ test('out-of-scope single question is rejected', async () => {
 test('malformed judge response cannot become passed', async () => {
   const { runner } = fixture({ judgeResult: { passed:'true' } });
   const result = await runner.start(); assert.equal(result.state, 'uncertain');
+});
+test('chapter 6–8 plans exclude the previously completed chapters', () => {
+  const plan=makePlan([p(),p('DC06PE01',61),p('DC07PE15',71),p('DC08PE12',81)],{},[6,7,8]);
+  assert.deepEqual(plan.map(p=>p.chapter),[6,7,8]);
+});
+test('an explicit chapter 6–8 runner can complete chapter six', async () => {
+  const {runner}=fixture({rows:[p('DC06PE01',61)],bank:{DC06PE01:'example'},chapters:[6,7,8],detail:{questionFullName:'第6章-DC06PE01'}});
+  const result=await runner.start();assert.equal(result.state,'completed');assert.deepEqual(result.chapters,[6,7,8]);
+});
+test('an explicit chapter 6–8 runner rejects an earlier chapter', async () => {
+  const {runner,calls}=fixture({chapters:[6,7,8]});
+  await assert.rejects(runner.start({only:'DC01PE21'}));assert.equal(calls.length,0);
+});
+test('invalid chapter scopes fail closed', () => {
+  for(const scope of [[],[0],[9],[6,6],['6']]) assert.throws(()=>validateChapters(scope));
 });

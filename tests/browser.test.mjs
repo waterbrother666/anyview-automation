@@ -5,9 +5,12 @@ import fs from 'node:fs';
 import { webcrypto } from 'node:crypto';
 
 const core = fs.readFileSync(new URL('../src/core.mjs', import.meta.url), 'utf8').replaceAll('export ', '');
-const browser = fs.readFileSync(new URL('../src/browser.js', import.meta.url), 'utf8')
-  .replace('__BANK__', JSON.stringify({DC01PE21: '#include "example.h"\nint example(void){return 1;}'}));
-function harness(origin = 'https://anyview.gdut.edu.cn', successCode = 200) {
+const browserTemplate = fs.readFileSync(new URL('../src/browser.js', import.meta.url), 'utf8');
+function harness(origin = 'https://anyview.gdut.edu.cn', successCode = 200, chapters = [1,2,3,4,5]) {
+  const pname = chapters.includes(1) ? 'DC01PE21' : 'DC06PE01';
+  const eid = chapters.includes(1) ? 21 : 61;
+  const browser=browserTemplate.replace('__CHAPTERS__',JSON.stringify(chapters))
+    .replace('__BANK__',JSON.stringify({[pname]:'#include "example.h"\nint example(void){return 1;}'}));
   const controls = new Map(); const calls = []; const data = new Map(); let passed = false;
   const element = () => ({ textContent:'', disabled:false, value:'', open:false,
     setAttribute(){}, append(){}, click(){}, show(){this.open=true;}, close(){this.open=false;},
@@ -18,8 +21,8 @@ function harness(origin = 'https://anyview.gdut.edu.cn', successCode = 200) {
   const fakeFetch = async (path, options = {}) => {
     calls.push({path,options}); let result;
     if (path === '/api/scheme-service/scheme/list/student') result = [{id:1,classId:2,name:'test course',questionType:1}];
-    else if (path.startsWith('/api/scheme-service/catalog/list?')) result = [{pname:'DC01PE21',eid:21,pass:passed}];
-    else if (path.endsWith('/21')) result={questionFullName:'第1章-DC01PE21',kind:0,language:1};
+    else if (path.startsWith('/api/scheme-service/catalog/list?')) result = [{pname,eid,pass:passed}];
+    else if (path.endsWith('/'+eid)) result={questionFullName:`第${chapters.includes(1)?1:6}章-${pname}`,kind:0,language:1};
     else if (path.endsWith('/compile')) result={result:'编译成功'};
     else if (path.endsWith('/runGroup')) {passed=true;result={passed:true,output:'OK'};}
     else throw Error('Unexpected request: '+path);
@@ -75,4 +78,13 @@ test('an unexpected server code is shown without revealing credentials',async()=
   assert.match(h.controls.get('[data-message]').textContent,/状态码 403/);
   assert.ok(!h.controls.get('[data-message]').textContent.includes('test-session-only'));
   assert.ok(!h.calls.some(x=>x.path.endsWith('/runGroup')));
+});
+test('the browser entry keeps a chapter 6–8 build in its selected scope',async()=>{
+  const h=harness('https://anyview.gdut.edu.cn',31,[6,7,8]);h.connect();await h.controls.get('[data-load]').onclick();
+  assert.match(h.controls.get('h3').textContent,/第6、7、8章/);
+  assert.equal(h.controls.get('[data-one]').textContent,'先验证 DC06PE01');
+  await h.controls.get('[data-one]').onclick();
+  const report=h.context.AnyViewAutomation.report();assert.equal(report.state,'completed');
+  assert.equal(report.records[0].pname,'DC06PE01');
+  assert.equal(h.calls.find(x=>x.path.endsWith('/runGroup')).options.body.get('eID'),'61');
 });
