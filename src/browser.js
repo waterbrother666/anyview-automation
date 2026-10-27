@@ -17,6 +17,10 @@
     return u.origin === location.origin && u.pathname.startsWith('/api/'); } catch { return false; } };
   function acceptToken(value) {
     if (typeof value !== 'string' || !value) return;
+    if (token && token !== value && runner?.running) {
+      runner.stop(); token = ''; connected = false;
+      render('检测到登录会话变更，批次已请求停止；请重新读取目录。'); return;
+    }
     token = value; connected = true; render('已连接当前会话；可读取目录。');
   }
   function opened(method, url, ...rest) { xhrUrls.set(this, String(url)); return originalOpen.call(this, method, url, ...rest); }

@@ -1,0 +1,3 @@
+{
+  "DC01PE00": "/* Synthetic build fixture; not a course answer. */\nint example(void) { return 1; }"
+}

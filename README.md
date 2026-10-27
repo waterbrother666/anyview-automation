@@ -33,7 +33,7 @@ python3 build.py --bank /absolute/path/to/your-bank.json
 ## 在 Ego Lite 中使用
 
 1. 在 AnyView 官方学生页面手动登录，打开目标编程课程。
-2. 审阅生成的 `dist/anyview-runner.js`，在该页面的开发者工具 Console 或 Snippets 中运行。浏览器如果要求人工处理粘贴或权限提示，由用户本人完成。
+2. 审阅生成的 `dist/anyview-runner.js`，在该页面的开发者工具 Console 或 Snippets 中运行。也可在 Ego Lite 打开本地 `dist/install.html`，把其中的启动器链接拖到书签栏，再切回 AnyView 点击书签。浏览器如果要求人工处理粘贴或权限提示，由用户本人完成。
 3. 脚本会显示控制面板。在学校原页面正常点击一次返回、课程或章节，使脚本连接当前会话；不需要把密码交给脚本。
 4. 点击「读取课程与目录」，核对课程和题目数量。
 5. 点击「先验证 DC01PE21」。确认单题判题和目录通过后，再点击「开始第一至第五章」。
@@ -43,7 +43,7 @@ python3 build.py --bank /absolute/path/to/your-bank.json
 
 ## 失败与续跑
 
-`compile_failed` / `failed`：检查输出和题解，修正本地题解、重新构建后再运行。
+`compile_failed` / `failed`：检查输出和题解，修正本地题解、重新构建，刷新学校页面并重新加载新脚本后再运行。直接重复点击旧书签仍然使用该书签内的旧题解；重新构建后需重新添加生成的新启动器书签。
 
 `uncertain` / 上次停在 `compiling` 或 `judging`：下次先读目录。如果服务端已通过则跳过，否则保持暂停，避免重复未知提交。导出报告并人工核实请求结果后再处理；框架不提供一键抹掉不明结果的操作。
 
@@ -52,7 +52,7 @@ python3 build.py --bank /absolute/path/to/your-bank.json
 ## 验证
 
 ```sh
-node --test tests/core.test.mjs
+node --test tests/*.test.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 build.py
 node --check dist/anyview-runner.js
